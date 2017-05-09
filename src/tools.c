@@ -7,8 +7,12 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 
+#include <sys/types.h>
+#include <sys/wait.h>
+
 #include "sse.h"
 #include "http.h"
+
 
 #if defined(__APPLE__) && defined(__MACH__)
 
@@ -17,9 +21,9 @@ static int execvpe(const char *program, char **argv, char **envp)
 {
     char **saved = environ;
     environ = envp;
-    
+
     int rc = execvp(program, argv);
-    
+
     environ = saved;
     return rc;
 }
@@ -69,7 +73,7 @@ static void free_sse_environment()
     free(*h);
     ++h;
   }
-  
+
   sse_environment[0] = 0;
 }
 
@@ -87,19 +91,19 @@ void log_sse_event(char** headers, const char* data)
       event_type = *p + 5;
   }
 
-  fprintf(stderr, "EVENT %s:%s (%d byte)\n", event_type ? event_type : "event", 
+  fprintf(stderr, "EVENT %s:%s (%d byte)\n", event_type ? event_type : "event",
                       event_id ? event_id : "<none>", (int) strlen(data));
 }
 
 void on_sse_event(char** headers, const char* data, const char* reply_url)
 {
   log_sse_event(headers, data);
-  
+
   char* result = 0;
-  
+
   if(options.command) {
     build_sse_environment(headers);
-    
+
     result = run_command(data, options.command, sse_environment);
     free_sse_environment();
   }
@@ -121,14 +125,14 @@ void on_sse_event(char** headers, const char* data, const char* reply_url)
   }
 
   free(result);
-  
+
   if(options.limit && 0 == --options.limit) {
     exit(0);
   }
 }
 
 /*
- * Run \a command, with the given \a environment, pass in \a data 
+ * Run \a command, with the given \a environment, pass in \a data
  * into the subprocess' STDIN, and return the subprocess' STDOUT.
  *
  * Make sure to free the returned memory.
@@ -141,17 +145,17 @@ static char* run_command(const char* data, char** command, char** environment)
 
   int pipe_from_child[2];
   if (pipe(pipe_from_child) != 0) die("pipe");
-  
+
   // Start subprocess
   pid_t pid = fork();
   if (pid == -1) die("fork");
-  
+
   char* read_data = 0;
-  
+
   if (pid == 0) { /* the child */
     dup2(pipe_to_child[FD_STDIN], FD_STDIN);
     close(pipe_to_child[FD_STDOUT]);
-    
+
     dup2(pipe_from_child[FD_STDOUT], FD_STDOUT);
     close(pipe_from_child[FD_STDIN]);
 
@@ -159,11 +163,11 @@ static char* run_command(const char* data, char** command, char** environment)
     asprintf(&ret, "Running %s\n", command[0]);
     logger(1, ret, 0, 0);
     free(ret);
-    
+
     execvpe(command[0], command, environment);
     _die(command[0]);  /* die via _exit: a failed child should not flush parent files */
   }
-  else { /* code for parent */ 
+  else { /* code for parent */
     close(pipe_to_child[FD_STDIN]);
     write_all(pipe_to_child[FD_STDOUT], data, strlen(data));
     close(pipe_to_child[FD_STDOUT]);
@@ -174,14 +178,14 @@ static char* run_command(const char* data, char** command, char** environment)
 
     int status = 0;
     waitpid(pid, &status, 0);
-    
+
     // Show results if something broke.
     if(WIFEXITED(status) && WEXITSTATUS(status) != 0)
       fprintf(stderr, "child exited with stats %d\n", WEXITSTATUS(status));
     else if(WIFSIGNALED(status))
       fprintf(stderr, "child exited of signal %d\n", WTERMSIG(status));
   }
-  
+
   return read_data;
 }
 
@@ -190,7 +194,7 @@ static char* run_command(const char* data, char** command, char** environment)
  */
 int write_all(int fd, const char* data, unsigned dataLen) {
   const char *s = data, *e = data + dataLen;
-  
+
   while(data < e) {
     int written = write(fd, data, e - data);
     if(written < 0)
@@ -203,20 +207,20 @@ int write_all(int fd, const char* data, unsigned dataLen) {
 }
 
 /*
- * read data from fd handle, return a malloced area in the pResult 
+ * read data from fd handle, return a malloced area in the pResult
  * buffer - this must be freed by the caller - and returns the number
  * of bytes read.
  */
 int read_all(int fd, char** pResult, size_t limit) {
-  char buf[8192]; 
+  char buf[8192];
   int length = 0;
-  
+
   *pResult = 0;
-  
+
   while(1) {
     size_t bytes_to_read = limit ? limit - length : sizeof(buf);
     if(!bytes_to_read) break;
-    
+
     int bytes_read = read(fd, buf, bytes_to_read);
 
     if(bytes_read < 0) {
@@ -243,12 +247,12 @@ int read_all(int fd, char** pResult, size_t limit) {
 }
 
 void die(const char* msg) {
-  perror(msg); 
+  perror(msg);
   exit(1);
 }
 
 void _die(const char* msg) {
-  perror(msg); 
+  perror(msg);
   _exit(1);
 }
 
@@ -256,7 +260,7 @@ void _die(const char* msg) {
  * logging: when \a options.verbosity is greater than or equal \a verbosity
  * this function writes out \a data to stderr.
  *
- * Note: this is not an excessively well-performing logging method. 
+ * Note: this is not an excessively well-performing logging method.
  */
 void logger(int verbosity, const char* data, unsigned len, const char* sep)
 {
@@ -267,10 +271,10 @@ void logger(int verbosity, const char* data, unsigned len, const char* sep)
 
   if(sep)
     fputs(sep, stderr);
-  
+
   for(; len--; ++data) {
     fputc(*data, stderr);
-    
+
     if(sep && *data == '\n')
       fputs(sep, stderr);
   }
@@ -283,7 +287,7 @@ void logger(int verbosity, const char* data, unsigned len, const char* sep)
 const char* streeq(const char* string, const char* pattern) {
   if(!*pattern || !*pattern) return string;
   if(!string || !*string) return NULL;
-  
+
   size_t string_len = strlen(string);
   size_t pattern_len = strlen(pattern);
   if(string_len < pattern_len) return NULL;
@@ -300,7 +304,7 @@ const char* streeq(const char* string, const char* pattern) {
 const char* strseq(const char* string, const char* pattern) {
   if(!*pattern || !*pattern) return string;
   if(!string || !*string) return NULL;
-  
+
   size_t pattern_len = strlen(pattern);
 
   return strncmp(string, pattern, pattern_len) == 0 ? string + pattern_len : NULL;
