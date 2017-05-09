@@ -4,6 +4,9 @@
  *
  * For more information see https://https://github.com/radiospiel/sse.
  */
+#define _GNU_SOURCE
+#include <stdio.h>
+
 #include "sse.h"
 #include "http.h"
 
