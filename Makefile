@@ -19,7 +19,8 @@ CURL_URL=http://curl.haxx.se/download/curl-7.28.0.tar.gz
 
 CFLAGS=-Isrc
 RFLAGS=-Os -DNDEBUG -Wall
-DFLAGS=-g -Wall -Werror
+DFLAGS=-g -Wall 
+#-Werror
 
 ifeq ($(RELEASE),1)
 	CFLAGS:=$(CFLAGS) $(RFLAGS)
