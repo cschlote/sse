@@ -17,10 +17,9 @@ CURL_URL=http://curl.haxx.se/download/curl-7.28.0.tar.gz
 
 # --- compile flags ---------------------------------------------------
 
-CFLAGS=-Isrc
+CFLAGS=-Isrc -DYY_NO_INPUT
 RFLAGS=-Os -DNDEBUG -Wall
-DFLAGS=-g -Wall 
-#-Werror
+DFLAGS=-g -Wall -Werror
 
 ifeq ($(RELEASE),1)
 	CFLAGS:=$(CFLAGS) $(RFLAGS)
