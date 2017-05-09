@@ -160,10 +160,11 @@ static char* run_command(const char* data, char** command, char** environment)
     close(pipe_from_child[FD_STDIN]);
 
     char* ret;
-    asprintf(&ret, "Running %s\n", command[0]);
-    logger(1, ret, 0, 0);
-    free(ret);
-
+    int rc = asprintf(&ret, "Running %s\n", command[0]);
+    if (rc >= 0) {
+        logger(1, ret, 0, 0);
+        free(ret);
+    }
     execvpe(command[0], command, environment);
     _die(command[0]);  /* die via _exit: a failed child should not flush parent files */
   }
